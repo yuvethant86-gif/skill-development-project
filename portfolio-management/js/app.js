@@ -1,6 +1,6 @@
 const state = loadPortfolioState();
 const navButtons = document.querySelectorAll('.nav-link');
-const selectedSection = document.getElementById('dashboard');
+const appShell = document.querySelector('.app-shell');
 
 function renderDashboard() {
   const metrics = calculatePortfolioMetrics(state);
@@ -18,18 +18,51 @@ function renderDashboard() {
   document.getElementById('unrealized-pnl').textContent = formatSignedCurrency(metrics.unrealizedProfitLoss);
   document.getElementById('realized-pnl').textContent = formatSignedCurrency(metrics.realizedProfitLoss);
   document.getElementById('portfolio-return').textContent = `${metrics.portfolioReturn.toFixed(2)}%`;
+  document.getElementById('current-date').textContent = new Intl.DateTimeFormat('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  }).format(new Date());
+  document.getElementById('total-pnl').classList.toggle('positive', metrics.totalProfitLoss >= 0);
+  document.getElementById('total-pnl').classList.toggle('negative', metrics.totalProfitLoss < 0);
+  document.getElementById('unrealized-pnl').classList.toggle('positive', metrics.unrealizedProfitLoss >= 0);
+  document.getElementById('unrealized-pnl').classList.toggle('negative', metrics.unrealizedProfitLoss < 0);
+  document.getElementById('realized-pnl').classList.toggle('positive', metrics.realizedProfitLoss >= 0);
+  document.getElementById('realized-pnl').classList.toggle('negative', metrics.realizedProfitLoss < 0);
+
+  renderPerformanceChart(metrics);
 
   const allocationList = document.getElementById('allocation-list');
   const allocations = getAllocationData(state.holdings);
+  let allocationStart = 0;
+  const allocationStops = allocations.map((item, index) => {
+    const color = ['#8b72ff', '#42a5f5', '#36d399', '#f4bd50', '#ef7294', '#61c5c7'][index % 6];
+    const nextStop = allocationStart + (item.percentage * 3.6);
+    const stop = `${color} ${allocationStart}deg ${nextStop}deg`;
+    allocationStart = nextStop;
+    return stop;
+  });
+  const donut = document.getElementById('allocation-donut');
+  donut.style.background = allocationStops.length
+    ? `conic-gradient(${allocationStops.join(', ')})`
+    : 'conic-gradient(#293448 0deg 360deg)';
+  donut.setAttribute('aria-label', allocations.length
+    ? `Portfolio allocation across ${allocations.length} holdings`
+    : 'No portfolio holdings');
   allocationList.innerHTML = allocations.length
-    ? allocations.map((item) => `
+    ? allocations.map((item, index) => `
       <div class="allocation-item">
         <div class="allocation-row">
-          <span>${item.company}</span>
+          <span><i class="allocation-dot" style="--allocation-color: ${['#8b72ff', '#42a5f5', '#36d399', '#f4bd50', '#ef7294', '#61c5c7'][index % 6]}" aria-hidden="true"></i>${item.company}</span>
           <strong>${formatCurrency(item.value)}</strong>
         </div>
         <div class="progress-bar">
           <span class="progress-fill" style="width: ${Math.min(item.percentage, 100)}%"></span>
+        </div>
+        <div class="allocation-row allocation-percent-row">
+          <span>Portfolio share</span>
+          <strong class="allocation-percent">${item.percentage.toFixed(1)}%</strong>
         </div>
       </div>
     `).join('')
@@ -40,11 +73,30 @@ function renderDashboard() {
   recentList.innerHTML = recentTransactions.length
     ? recentTransactions.map((entry) => `
       <div class="mini-metric">
-        <span>${entry.type === 'BUY' ? 'Bought' : 'Sold'} ${entry.symbol}</span>
-        <strong>${formatSignedCurrency(entry.type === 'BUY' ? -entry.amount : entry.amount)}</strong>
+        <span><b class="transaction-type ${entry.type.toLowerCase()}">${entry.type}</b> ${entry.symbol} <small>· ${entry.quantity} shares</small></span>
+        <strong>${formatCurrency(entry.amount)}</strong>
       </div>
     `).join('')
     : '<div class="empty-state">No recent transactions.</div>';
+}
+
+function renderPerformanceChart(metrics) {
+  const chart = document.getElementById('performance-chart');
+  const largestValue = Math.max(metrics.currentMarketValue, metrics.totalInvestedAmount, 1);
+  const marketWidth = (metrics.currentMarketValue / largestValue) * 100;
+  const investedWidth = (metrics.totalInvestedAmount / largestValue) * 100;
+
+  chart.innerHTML = `
+    <div>
+      <div class="chart-value-row"><span>Current market value</span><strong>${formatCurrency(metrics.currentMarketValue)}</strong></div>
+      <div class="chart-track"><span class="chart-bar" style="width:${marketWidth}%"></span></div>
+    </div>
+    <div>
+      <div class="chart-value-row"><span>Remaining cost basis</span><strong>${formatCurrency(metrics.totalInvestedAmount)}</strong></div>
+      <div class="chart-track"><span class="chart-bar cost" style="width:${investedWidth}%"></span></div>
+    </div>
+    <p class="chart-caption">Snapshot of your holdings using fixed illustrative sample prices; not historical or live performance.</p>
+  `;
 }
 
 function renderBalanceSection() {
@@ -117,16 +169,6 @@ function renderHoldings() {
       }).join('')
     : '<tr><td colspan="10"><div class="empty-state">No holdings match your current search.</div></td></tr>';
 
-  const sellButtons = document.querySelectorAll('[data-sell-symbol]');
-  sellButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const targetSymbol = button.getAttribute('data-sell-symbol');
-      showSection('trade');
-      const sellSelect = document.getElementById('sell-stock-select');
-      sellSelect.value = targetSymbol;
-      updateSellForm();
-    });
-  });
 }
 
 function renderRecommendations() {
@@ -157,7 +199,11 @@ function renderRecommendations() {
         <span class="variant-badge ${item.rating.toLowerCase()}">${item.rating}</span>
       </div>
       <p>${item.explanation}</p>
-      <button class="btn btn-primary" type="button" data-buy-stock="${item.symbol}">View / Buy</button>
+      <p class="recommendation-detail" hidden>Sample prices and labels are fixed educational examples. They do not reflect a live market view or personalized investment advice.</p>
+      <div class="recommendation-actions">
+        <button class="btn btn-outline-primary" type="button" data-recommendation-details="${item.symbol}" aria-expanded="false">View details</button>
+        <button class="btn btn-primary" type="button" data-buy-stock="${item.symbol}"><i class="bi bi-plus-circle" aria-hidden="true"></i> Simulate buy</button>
+      </div>
     </article>
   `).join('');
 }
@@ -191,18 +237,26 @@ function renderTradeForms() {
 
 function renderHistory() {
   const tbody = document.getElementById('history-table-body');
-  tbody.innerHTML = state.transactions.length
-    ? state.transactions.map((entry) => `
+  const searchTerm = document.getElementById('history-search').value.trim().toLowerCase();
+  const typeFilter = document.getElementById('history-type-filter').value;
+  const filteredTransactions = state.transactions.filter((entry) => {
+    const matchesType = typeFilter === 'all' || entry.type === typeFilter;
+    const searchable = `${entry.company} ${entry.symbol} ${entry.type} ${entry.quantity}`.toLowerCase();
+    return matchesType && searchable.includes(searchTerm);
+  });
+
+  tbody.innerHTML = filteredTransactions.length
+    ? filteredTransactions.map((entry) => `
       <tr>
         <td>${new Date(entry.date).toLocaleString('en-IN')}</td>
         <td>${entry.company} (${entry.symbol})</td>
-        <td><span class="${entry.type === 'BUY' ? 'positive' : 'negative'}">${entry.type}</span></td>
+        <td><span class="transaction-type ${entry.type.toLowerCase()}">${entry.type}</span></td>
         <td>${entry.quantity}</td>
         <td>${formatCurrency(entry.price)}</td>
         <td>${formatCurrency(entry.amount)}</td>
       </tr>
     `).join('')
-    : '<tr><td colspan="6"><div class="empty-state">No transactions recorded yet.</div></td></tr>';
+    : `<tr><td colspan="6"><div class="empty-state">${state.transactions.length ? 'No transactions match your filters.' : 'No transactions recorded yet.'}</div></td></tr>`;
 }
 
 function updateBuyForm() {
@@ -216,6 +270,7 @@ function updateBuyForm() {
 
   priceBox.textContent = stock ? formatCurrency(stock.price) : '₹0';
   totalBox.textContent = formatCurrency(total);
+  document.getElementById('buy-available-balance').textContent = formatCurrency(state.balance);
 }
 
 function updateSellForm() {
@@ -229,6 +284,8 @@ function updateSellForm() {
 
   priceBox.textContent = stock ? formatCurrency(stock.price) : '₹0';
   totalBox.textContent = formatCurrency(total);
+  const holding = state.holdings.find((item) => item.symbol === select.value);
+  document.getElementById('sell-shares-owned').textContent = holding ? holding.shares : '0';
 }
 
 function setFormMessage(elementId, message, type = '') {
@@ -258,6 +315,77 @@ function showSection(targetId) {
   document.querySelectorAll('.nav-link').forEach((button) => {
     button.classList.toggle('active', button.dataset.target === targetId);
   });
+  closeMobileNavigation();
+}
+
+function setTradeTab(tabName) {
+  document.querySelectorAll('[data-trade-tab]').forEach((button) => {
+    const isActive = button.dataset.tradeTab === tabName;
+    button.classList.toggle('active', isActive);
+    button.setAttribute('aria-selected', String(isActive));
+  });
+
+  document.querySelectorAll('[data-trade-panel]').forEach((panel) => {
+    const isActive = panel.dataset.tradePanel === tabName;
+    panel.hidden = !isActive;
+    panel.classList.toggle('active', isActive);
+  });
+}
+
+function closeMobileNavigation() {
+  appShell.classList.remove('mobile-nav-open');
+  document.body.classList.remove('mobile-nav-open');
+  document.getElementById('mobile-menu-toggle').setAttribute('aria-expanded', 'false');
+}
+
+function handleAppClick(event) {
+  const sellButton = event.target.closest('[data-sell-symbol]');
+  if (sellButton) {
+    showSection('trade');
+    setTradeTab('sell');
+    const sellSelect = document.getElementById('sell-stock-select');
+    sellSelect.value = sellButton.dataset.sellSymbol;
+    updateSellForm();
+    return;
+  }
+
+  const buyButton = event.target.closest('[data-buy-stock]');
+  if (buyButton) {
+    showSection('trade');
+    setTradeTab('buy');
+    const buySelect = document.getElementById('buy-stock-select');
+    buySelect.value = buyButton.dataset.buyStock;
+    updateBuyForm();
+    return;
+  }
+
+  const sellQuickAction = event.target.closest('[data-sell-first-holding]');
+  if (sellQuickAction) {
+    showSection('trade');
+    setTradeTab('sell');
+    if (state.holdings.length) {
+      document.getElementById('sell-stock-select').value = state.holdings[0].symbol;
+      updateSellForm();
+    } else {
+      showToast('There are no holdings to sell.', 'error');
+    }
+    return;
+  }
+
+  const detailsButton = event.target.closest('[data-recommendation-details]');
+  if (detailsButton) {
+    const expanded = detailsButton.getAttribute('aria-expanded') === 'true';
+    detailsButton.setAttribute('aria-expanded', String(!expanded));
+    const detail = detailsButton.closest('.recommendation-card').querySelector('.recommendation-detail');
+    detail.hidden = expanded;
+    detailsButton.textContent = expanded ? 'View details' : 'Hide details';
+    return;
+  }
+
+  const goToButton = event.target.closest('[data-goto-section]');
+  if (goToButton) {
+    showSection(goToButton.dataset.gotoSection);
+  }
 }
 
 function handleBuySubmit(event) {
@@ -324,18 +452,9 @@ function bindEvents() {
     button.addEventListener('click', () => showSection(button.dataset.target));
   });
 
-  document.querySelectorAll('[data-buy-stock]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const symbol = button.dataset.buyStock;
-      showSection('trade');
-      const buySelect = document.getElementById('buy-stock-select');
-      buySelect.value = symbol;
-      updateBuyForm();
-    });
-  });
-
-  document.querySelectorAll('[data-goto-section]').forEach((button) => {
-    button.addEventListener('click', () => showSection(button.dataset.gotoSection));
+  document.addEventListener('click', handleAppClick);
+  document.querySelectorAll('[data-trade-tab]').forEach((button) => {
+    button.addEventListener('click', () => setTradeTab(button.dataset.tradeTab));
   });
 
   document.getElementById('buy-stock-select').addEventListener('change', updateBuyForm);
@@ -348,12 +467,41 @@ function bindEvents() {
 
   document.getElementById('holdings-search').addEventListener('input', renderHoldings);
   document.getElementById('holdings-sort').addEventListener('change', renderHoldings);
+  document.getElementById('history-search').addEventListener('input', renderHistory);
+  document.getElementById('history-type-filter').addEventListener('change', renderHistory);
   document.getElementById('reset-demo-btn').addEventListener('click', handleResetData);
+  document.getElementById('sidebar-collapse').addEventListener('click', () => {
+    const collapsed = appShell.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('portfolio-sidebar-collapsed', String(collapsed));
+    const collapseButton = document.getElementById('sidebar-collapse');
+    collapseButton.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+    collapseButton.setAttribute('aria-expanded', String(!collapsed));
+    collapseButton.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+  });
+  document.getElementById('mobile-menu-toggle').addEventListener('click', () => {
+    appShell.classList.add('mobile-nav-open');
+    document.body.classList.add('mobile-nav-open');
+    document.getElementById('mobile-menu-toggle').setAttribute('aria-expanded', 'true');
+  });
+  document.getElementById('sidebar-backdrop').addEventListener('click', closeMobileNavigation);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      closeMobileNavigation();
+    }
+  });
 }
 
 function initializeApp() {
+  if (localStorage.getItem('portfolio-sidebar-collapsed') === 'true') {
+    appShell.classList.add('sidebar-collapsed');
+    const collapseButton = document.getElementById('sidebar-collapse');
+    collapseButton.setAttribute('aria-label', 'Expand sidebar');
+    collapseButton.setAttribute('aria-expanded', 'false');
+    collapseButton.title = 'Expand sidebar';
+  }
   renderAll();
   bindEvents();
+  setTradeTab('buy');
   setFormMessage('buy-message', '', '');
   setFormMessage('sell-message', '', '');
 }
