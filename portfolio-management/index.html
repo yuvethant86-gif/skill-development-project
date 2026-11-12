@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PortfolioPilot Demo</title>
+    <meta
+      name="description"
+      content="Simulated stock portfolio management dashboard for educational use."
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <div class="brand-mark">P</div>
+          <div>
+            <h1>PortfolioPilot</h1>
+            <span class="demo-tag">DEMO MODE</span>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Main navigation">
+          <button class="nav-link active" data-target="dashboard" type="button">
+            <span>🏠</span>
+            <span>Dashboard</span>
+          </button>
+          <button class="nav-link" data-target="balance" type="button">
+            <span>💰</span>
+            <span>Available Balance</span>
+          </button>
+          <button class="nav-link" data-target="holdings" type="button">
+            <span>📊</span>
+            <span>My Holdings</span>
+          </button>
+          <button class="nav-link" data-target="recommendations" type="button">
+            <span>📈</span>
+            <span>Top Recommendations</span>
+          </button>
+          <button class="nav-link" data-target="trade" type="button">
+            <span>🛒</span>
+            <span>Buy / Sell Stocks</span>
+          </button>
+          <button class="nav-link" data-target="history" type="button">
+            <span>🧾</span>
+            <span>Transaction History</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="demo-note">
+            All stock prices, holdings, and transactions are simulated sample data.
+          </div>
+          <button id="reset-demo-btn" class="btn btn-reset" type="button">
+            Reset Demo Data
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Portfolio Overview</p>
+            <h2>Demo stock portfolio dashboard</h2>
+          </div>
+          <div class="header-badges">
+            <span class="status-pill">Live Demo</span>
+            <span class="status-pill muted">No real trades</span>
+          </div>
+        </header>
+
+        <section id="dashboard" class="page-section active" aria-label="Dashboard section">
+          <div class="dashboard-grid">
+            <article class="stat-card accent">
+              <div class="card-header">
+                <span class="label">Total Portfolio Value</span>
+                <span class="icon">💼</span>
+              </div>
+              <h3 id="portfolio-value">₹0</h3>
+              <p id="portfolio-change">Updated from demo data</p>
+            </article>
+
+            <article class="stat-card">
+              <div class="card-header">
+                <span class="label">Available Cash Balance</span>
+                <span class="icon">💸</span>
+              </div>
+              <h3 id="cash-balance">₹0</h3>
+              <p id="cash-note">Demo cash reserve</p>
+            </article>
+
+            <article class="stat-card">
+              <div class="card-header">
+                <span class="label">Total Invested Amount</span>
+                <span class="icon">📉</span>
+              </div>
+              <h3 id="invested-amount">₹0</h3>
+              <p id="invested-note">Current cost basis</p>
+            </article>
+
+            <article class="stat-card warning">
+              <div class="card-header">
+                <span class="label">Total Profit / Loss</span>
+                <span class="icon">📈</span>
+              </div>
+              <h3 id="total-pnl">₹0</h3>
+              <p id="pnl-note">Unrealized + realized</p>
+            </article>
+          </div>
+
+          <div class="content-grid two-column">
+            <article class="panel">
+              <div class="panel-header">
+                <h3>Portfolio Allocation</h3>
+              </div>
+              <div id="allocation-list" class="allocation-list"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <h3>Performance Snapshot</h3>
+              </div>
+              <div class="performance-container">
+                <div class="mini-metric">
+                  <span>Unrealized P/L</span>
+                  <strong id="unrealized-pnl">₹0</strong>
+                </div>
+                <div class="mini-metric">
+                  <span>Realized P/L</span>
+                  <strong id="realized-pnl">₹0</strong>
+                </div>
+                <div class="mini-metric">
+                  <span>Portfolio Return</span>
+                  <strong id="portfolio-return">0%</strong>
+                </div>
+              </div>
+            </article>
+          </div>
+
+          <div class="content-grid two-column">
+            <article class="panel">
+              <div class="panel-header">
+                <h3>Recent Transactions</h3>
+              </div>
+              <div id="recent-transactions" class="recent-list"></div>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <h3>Quick Actions</h3>
+              </div>
+              <div class="quick-actions">
+                <button class="btn btn-primary" type="button" data-buy-stock="TCS">
+                  Buy TCS
+                </button>
+                <button class="btn btn-secondary" type="button" data-buy-stock="INFY">
+                  Buy Infosys
+                </button>
+                <button class="btn btn-outline-primary" type="button" data-goto-section="trade">
+                  Trade stocks
+                </button>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="balance" class="page-section" aria-label="Available Balance section">
+          <div class="section-header">
+            <h3>Available Balance</h3>
+            <p>Monitor cash reserves and transaction activity.</p>
+          </div>
+          <div class="balance-grid">
+            <article class="stat-card summary">
+              <span class="label">Initial Demo Balance</span>
+              <h3 id="initial-balance">₹0</h3>
+            </article>
+            <article class="stat-card summary">
+              <span class="label">Current Available Balance</span>
+              <h3 id="current-balance">₹0</h3>
+            </article>
+            <article class="stat-card summary">
+              <span class="label">Total Money Spent on Purchases</span>
+              <h3 id="total-spent">₹0</h3>
+            </article>
+            <article class="stat-card summary">
+              <span class="label">Money Received from Sales</span>
+              <h3 id="total-received">₹0</h3>
+            </article>
+          </div>
+        </section>
+
+        <section id="holdings" class="page-section" aria-label="My Holdings section">
+          <div class="section-header row-gap">
+            <div>
+              <h3>My Holdings</h3>
+              <p>View your current stock positions and profit/loss.</p>
+            </div>
+            <div class="table-tools">
+              <input id="holdings-search" type="search" placeholder="Search holdings" />
+              <select id="holdings-sort" aria-label="Sort holdings">
+                <option value="symbol-asc">Symbol A–Z</option>
+                <option value="value-desc">Market value high to low</option>
+                <option value="pnl-desc">Profit/Loss high to low</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="table portfolio-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Symbol</th>
+                  <th>Shares</th>
+                  <th>Avg. Price</th>
+                  <th>Current Price</th>
+                  <th>Total Invested</th>
+                  <th>Market Value</th>
+                  <th>P/L</th>
+                  <th>%</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="holdings-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="recommendations" class="page-section" aria-label="Top Recommendations section">
+          <div class="section-header">
+            <h3>Top Recommendations</h3>
+            <p>
+              These are illustrative educational recommendations using sample data. They are not financial advice.
+            </p>
+          </div>
+          <p class="disclaimer-box">
+            "These are illustrative educational recommendations using sample data. They are not financial advice."
+          </p>
+          <div id="recommendation-list" class="recommendation-grid"></div>
+        </section>
+
+        <section id="trade" class="page-section" aria-label="Buy and sell stocks section">
+          <div class="section-header">
+            <h3>Buy / Sell Stocks</h3>
+            <p>Use the demo forms below to simulate market activity.</p>
+          </div>
+
+          <div class="trade-grid">
+            <article class="panel">
+              <div class="panel-header">
+                <h3>Buy Stock</h3>
+              </div>
+              <form id="buy-form" novalidate>
+                <div class="form-group">
+                  <label for="buy-stock-select">Select company</label>
+                  <select id="buy-stock-select" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                  <label>Sample stock price</label>
+                  <div id="buy-price" class="value-badge">₹0</div>
+                </div>
+                <div class="form-group">
+                  <label for="buy-quantity">Quantity</label>
+                  <input id="buy-quantity" type="number" min="1" step="1" placeholder="Enter quantity" />
+                </div>
+                <div class="form-group">
+                  <label>Estimated total purchase cost</label>
+                  <div id="buy-total" class="value-badge accent">₹0</div>
+                </div>
+                <div id="buy-message" class="form-message" aria-live="polite"></div>
+                <button type="submit" class="btn btn-primary w-100">Confirm Purchase</button>
+              </form>
+            </article>
+
+            <article class="panel">
+              <div class="panel-header">
+                <h3>Sell Stock</h3>
+              </div>
+              <form id="sell-form" novalidate>
+                <div class="form-group">
+                  <label for="sell-stock-select">Select holding</label>
+                  <select id="sell-stock-select" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                  <label>Sample current price</label>
+                  <div id="sell-price" class="value-badge">₹0</div>
+                </div>
+                <div class="form-group">
+                  <label for="sell-quantity">Quantity to sell</label>
+                  <input id="sell-quantity" type="number" min="1" step="1" placeholder="Enter quantity" />
+                </div>
+                <div class="form-group">
+                  <label>Estimated sale value</label>
+                  <div id="sell-total" class="value-badge success">₹0</div>
+                </div>
+                <div id="sell-message" class="form-message" aria-live="polite"></div>
+                <button type="submit" class="btn btn-success w-100">Confirm Sale</button>
+              </form>
+            </article>
+          </div>
+        </section>
+
+        <section id="history" class="page-section" aria-label="Transaction History section">
+          <div class="section-header">
+            <h3>Transaction History</h3>
+            <p>Track all simulated portfolio transactions.</p>
+          </div>
+          <div class="table-wrap">
+            <table class="table history-table">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Stock</th>
+                  <th>Type</th>
+                  <th>Qty</th>
+                  <th>Price</th>
+                  <th>Amount</th>
+                </tr>
+              </thead>
+              <tbody id="history-table-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/portfolio.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
